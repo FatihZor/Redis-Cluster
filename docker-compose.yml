@@ -1,0 +1,48 @@
+version: '3'
+
+services:
+  master:
+    container_name: master
+    image: redis:7
+    expose:
+      - "6379"
+    networks:
+      redis-sentinel:
+        ipv4_address: 172.16.238.2 
+          
+  slave:
+    image: redis:7
+    command: redis-server --slaveof 172.16.238.2 6379
+    depends_on:
+      - master
+    links:
+      - master
+    networks:
+      - redis-sentinel
+    expose:
+      - "6379"
+  
+  sentinel:
+    build: sentinel
+    environment:
+      - SENTINEL_DOWN_AFTER=5000
+      - SENTINEL_FAILOVER=5000
+    links:
+      - master
+      - slave
+    depends_on:
+      - master
+      - slave
+    networks:
+      - redis-sentinel
+    expose:
+      - "26379"
+    ports:
+      - "26379-26381:26379"
+
+networks:
+  redis-sentinel:
+    driver: bridge
+    ipam:
+      config:
+          - subnet: 172.16.238.0/24
